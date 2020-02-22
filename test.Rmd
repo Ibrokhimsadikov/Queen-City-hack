@@ -1,0 +1,110 @@
+---
+title: "test"
+author: "SIR"
+date: "2/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(summarytools)
+library(h2o)
+library(waiter)
+library(dplyr)
+library(tidyverse)
+h2o.no_progress()  # turn off progress bars
+h2o.init()
+```
+
+
+```{r}
+df<- fread("./training.csv")
+```
+
+
+
+```{r}
+#dfSummary(df)
+```
+
+
+
+```{r}
+x_train1 <- df[,1:20]
+y_train1 <- df %>% select(target)
+data_h2o <- as.h2o(bind_cols(y_train1, x_train1))
+```
+
+
+
+```{r}
+splits_h2o <- h2o.splitFrame(data_h2o, ratios = c(0.7, 0.15), seed = 1234)
+train_h2o <- splits_h2o[[1]]
+valid_h2o <- splits_h2o[[2]]
+test_h2o  <- splits_h2o[[3]]
+```
+
+
+```{r}
+y <- "target"
+x <- setdiff(names(train_h2o), y)
+prostate.glm <- h2o.glm(family= "gaussian", x= x, y=y, training_frame=train_h2o, validation_frame  = valid_h2o, lambda = 0, compute_p_values = TRUE, remove_collinear_columns = TRUE)
+prostate.glm@model$coefficients_table
+```
+
+```{r}
+# Retrieve a graphical plot of the standardized coefficient magnitudes
+h2o.std_coef_plot(prostate.glm)
+```
+
+```{r}
+# Print the coefficients table
+prostate.glm@model$coefficients_table
+```
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+per=h2o.performance(prostate.glm, newdata = test_h2o)
+prediction_h2o <- h2o.predict(prostate.glm, newdata = test_h2o) 
+```
+
+```{r}
+per
+```
+
+```{r}
+prediction_h2o
+```
+
+```{r}
+ #Run lime() on training set
+  explainer <- lime::lime(
+    as.data.frame(train_h2o[,-1]), 
+    model          = prostate.glm, 
+    bin_continuous = TRUE)
+  
+  
+  #Run explain() on explainer
+  explanation <- lime::explain(
+    as.data.frame(test_h2o[1:2,-1]), 
+    explainer    = explainer, 
+    n_labels     = 1, 
+    n_features   = 5,
+    kernel_width = 0.5)
+  
+  plot_features(explanation) +
+    labs(title = " Predictive Analytics: LIME Feature  Visualization",
+         subtitle = "Hold Out (Test) Set, selected Cases Shown")
+```
+
+```{r}
+
+```
